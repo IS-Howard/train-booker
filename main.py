@@ -5,8 +5,8 @@ from seleniumbase import Driver
 from stations import stationIDs
 
 def load_from_args():
-    if len(sys.argv) != 10:
-        print("Usage: python main.py <帳號> <密碼> <起站> <終站> <日期> <車次> <目標車廂> <目標座號起始> <目標座號結束>")
+    if len(sys.argv) != 9:
+        print("Usage: python main.py <帳號> <密碼> <起站> <終站> <日期> <車次> <座位偏好(n/a/w)> <目標車廂>")
         sys.exit(1)
     
     data = {
@@ -16,9 +16,8 @@ def load_from_args():
         "終站": sys.argv[4],
         "日期": sys.argv[5],
         "車次": sys.argv[6],
-        "目標車廂": sys.argv[7],
-        "目標座號起始": sys.argv[8],
-        "目標座號結束": sys.argv[9]
+        "座位偏好": sys.argv[7],
+        "目標車廂": sys.argv[8],
     }
     return data
 
@@ -30,10 +29,11 @@ class Booker():
 
     def checkRecaptcha(self):
         print("wait passing recaptcha...")
+        wait = False
         if self.driver.is_element_visible('iframe[title="google recaptcha"]'):
             self.driver.switch_to_frame('iframe[title="google recaptcha"]')
+            time.sleep(1)
             self.driver.click('#recaptcha-anchor')
-            wait = False
             while not self.driver.is_element_visible('.recaptcha-checkbox-checked'):
                 self.driver.switch_to_default_window()
                 if self.driver.is_element_visible('iframe[title="recaptcha challenge expires in two minutes"]'):
@@ -46,8 +46,9 @@ class Booker():
                 time.sleep(1)
                 self.driver.switch_to_frame('iframe[title="google recaptcha"]')
         self.driver.switch_to_default_window()
+        time.sleep(1)
         if wait:
-            time.sleep(8)
+            time.sleep(9)
 
     def login(self):
         self.driver.open("https://www.railway.gov.tw/tra-tip-web/tip/tip008/tip811/memberLogin")
@@ -60,16 +61,28 @@ class Booker():
 
     def booking(self):
         self.driver.open("https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip121/query")
+        self.driver.click('#tablist > li:nth-child(2) > a')
         startStation = stationIDs[self.cfg["起站"]]+'-'+self.cfg["起站"]
-        self.driver.type('#startStation', startStation)
+        self.driver.type('#startStation1', startStation)
         endStation = stationIDs[self.cfg["終站"]]+'-'+self.cfg["終站"]
+        self.driver.type('#endStation1', endStation)
         self.driver.type('#pid', self.cfg["帳號"])
-        self.driver.type('#endStation', endStation)
         self.driver.type('#rideDate1', self.cfg["日期"])
         self.driver.type('#trainNoList1', self.cfg["車次"])
+        if self.driver.is_element_visible('#queryForm > div:nth-child(3) > div.column.col3 > div.zone.pref > div.zone-group > div > .btn.btn-lg.btn-linear.active'):
+            self.driver.click('#queryForm > div:nth-child(3) > div.column.col3 > div.zone.pref > div.zone-group > div > label')
+        if self.cfg["座位偏好"] == 'w':
+            self.driver.click("#queryForm > div:nth-child(3) > div.column.col3 > div:nth-child(2) > div.btn-group.seatPref > label:nth-child(2)")
+        elif self.cfg["座位偏好"] == 'a':
+            self.driver.click("#queryForm > div:nth-child(3) > div.column.col3 > div:nth-child(2) > div.btn-group.seatPref > label:nth-child(3)")
+        elif self.cfg["座位偏好"] == 'n':
+            self.driver.click("#queryForm > div:nth-child(3) > div.column.col3 > div:nth-child(2) > div.btn-group.seatPref > label:nth-child(1)")
         self.checkRecaptcha()
         self.driver.click('#queryForm > div.btn-sentgroup > input.btn.btn-3d')
         time.sleep(5)
+        self.driver.click('#queryForm > div.search-trip > table > tbody > tr.trip-column > td.check-way > label')
+        self.checkRecaptcha()
+        self.driver.click('#queryForm > div.btn-sentgroup > button.btn.btn-3d')
         seat = self.driver.get_text('.seat')
         self.reserved = re.findall(r'\d+', seat)
         self.bookID = self.driver.get_text('.font18')
@@ -95,7 +108,7 @@ class Booker():
         self.login()
         while(not success):
             self.booking()
-            if len(self.reserved) == 2 and self.reserved[0] == self.cfg["目標車廂"] and int(self.reserved[1]) < int(self.cfg["目標座號結束"]) and int(self.reserved[1]) > int(self.cfg["目標座號起始"]):
+            if len(self.reserved) == 2 and self.reserved[0] == self.cfg["目標車廂"]:
                 success = True
                 print("Found!!")
             else:

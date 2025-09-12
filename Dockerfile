@@ -23,6 +23,15 @@ RUN wget -q -O /tmp/google-chrome-stable_current_amd64.deb https://dl.google.com
 # Install Python dependencies
 RUN pip install --no-cache-dir seleniumbase
 
+# Pre-install chromedriver with proper permissions
+RUN seleniumbase install chromedriver
+
+# Create a non-root user for security
+RUN useradd -m -u 1000 appuser
+
+# Fix permissions for seleniumbase drivers directory
+RUN chmod -R 777 /usr/local/lib/python3.11/site-packages/seleniumbase/drivers/
+
 # Copy application files
 COPY main.py .
 COPY stations.py .
@@ -30,8 +39,8 @@ COPY stations.py .
 # Copy browser extension if it exists
 COPY extension/ ./extension/
 
-# Create a non-root user for security
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+# Change ownership of app directory
+RUN chown -R appuser:appuser /app
 USER appuser
 
 # Set display environment for headless mode
