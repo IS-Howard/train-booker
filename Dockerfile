@@ -26,7 +26,6 @@ RUN pip install --no-cache-dir seleniumbase
 # Copy application files
 COPY main.py .
 COPY stations.py .
-COPY settings.txt .
 
 # Copy browser extension if it exists
 COPY extension/ ./extension/
@@ -38,5 +37,5 @@ USER appuser
 # Set display environment for headless mode
 ENV DISPLAY=:99
 
-# Run the application
-CMD ["python", "main.py"]
+# Set entrypoint to allow command line arguments
+ENTRYPOINT ["python", "main.py"]

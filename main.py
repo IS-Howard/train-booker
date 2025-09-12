@@ -1,27 +1,31 @@
 import time
 import re
+import sys
 from seleniumbase import Driver
 from stations import stationIDs
 
-def load_from_file():
-    data = {}
-    try:
-        with open('settings.txt', 'r', encoding='utf-8') as file:
-            for line in file:
-                key, value = line.strip().split('=', 1)
-                data[key] = value
-        return data
-    except FileNotFoundError:
-        print("File not found!")
-        return None
-    except UnicodeDecodeError as e:
-        print(f"Error decoding file: {e}")
-        return None
+def load_from_args():
+    if len(sys.argv) != 10:
+        print("Usage: python main.py <帳號> <密碼> <起站> <終站> <日期> <車次> <目標車廂> <目標座號起始> <目標座號結束>")
+        sys.exit(1)
+    
+    data = {
+        "帳號": sys.argv[1],
+        "密碼": sys.argv[2],
+        "起站": sys.argv[3],
+        "終站": sys.argv[4],
+        "日期": sys.argv[5],
+        "車次": sys.argv[6],
+        "目標車廂": sys.argv[7],
+        "目標座號起始": sys.argv[8],
+        "目標座號結束": sys.argv[9]
+    }
+    return data
 
 class Booker():
     def __init__(self):
         extension_path = r"./extension"
-        self.cfg = load_from_file()
+        self.cfg = load_from_args()
         self.driver = Driver(uc=True, headless2=True, extension_dir=extension_path)
 
     def checkRecaptcha(self):
