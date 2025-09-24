@@ -5,19 +5,18 @@ from seleniumbase import Driver
 from stations import stationIDs
 
 def load_from_args():
-    if len(sys.argv) != 9:
-        print("Usage: python main.py <帳號> <密碼> <起站> <終站> <日期> <車次> <座位偏好(n/a/w)> <目標車廂>")
+    if len(sys.argv) != 8:
+        print("Usage: python main.py <帳號> <起站> <終站> <日期> <車次> <座位偏好(n/a/w)> <目標車廂>")
         sys.exit(1)
     
     data = {
         "帳號": sys.argv[1],
-        "密碼": sys.argv[2],
-        "起站": sys.argv[3],
-        "終站": sys.argv[4],
-        "日期": sys.argv[5],
-        "車次": sys.argv[6],
-        "座位偏好": sys.argv[7],
-        "目標車廂": sys.argv[8],
+        "起站": sys.argv[2],
+        "終站": sys.argv[3],
+        "日期": sys.argv[4],
+        "車次": sys.argv[5],
+        "座位偏好": sys.argv[6],
+        "目標車廂": sys.argv[7],
     }
     return data
 
@@ -104,15 +103,16 @@ class Booker():
         print("Canceled!!")
 
     def startBookAndCheck(self):
-        success = False
-        self.login()
-        while(not success):
+        # self.login()
+        count = 100
+        while(count > 0):
             self.booking()
             if len(self.reserved) == 2 and self.reserved[0] == self.cfg["目標車廂"]:
-                success = True
                 print("Found!!")
+                break
             else:
                 self.cancel()
+                count = count - 1
 
 if __name__ == "__main__":
     newBooker = Booker()
