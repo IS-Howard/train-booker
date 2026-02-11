@@ -84,6 +84,7 @@ class Booker():
         self.bookID = ""
         try:
             self.driver.open("https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip121/query")
+            self.waitForBlockUI()
             self.driver.click('#tablist > li:nth-child(2) > a')
             startStation = stationIDs[self.cfg["起站"]]+'-'+self.cfg["起站"]
             self.driver.type('#startStation1', startStation)
@@ -101,13 +102,16 @@ class Booker():
             elif self.cfg["座位偏好"] == 'n':
                 self.driver.click("#queryForm > div:nth-child(3) > div.column.col3 > div:nth-child(2) > div.btn-group.seatPref > label:nth-child(1)")
             self.checkRecaptcha()
+            self.waitForBlockUI()
             self.driver.click('#queryForm > div.btn-sentgroup > input.btn.btn-3d')
             time.sleep(5)
+            self.waitForBlockUI()
             if self.driver.is_element_visible('.search-trip-mag'):
                 print("無可用座位")
                 return "no_seats"
             self.driver.click('#queryForm > div.search-trip > table > tbody > tr.trip-column > td.check-way > label')
             self.checkRecaptcha()
+            self.waitForBlockUI()
             self.driver.click('#queryForm > div.btn-sentgroup > button.btn.btn-3d')
             seat = self.driver.get_text('.seat')
             self.reserved = re.findall(r'\d+', seat)
