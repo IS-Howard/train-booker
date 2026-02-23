@@ -148,6 +148,7 @@ class Booker():
         print("Canceled!!")
 
     def startBookAndCheck(self):
+        """Returns EXIT_SUCCESS, EXIT_NO_SEATS, or EXIT_ERROR."""
         # self.login()
         target_car = self.cfg["目標車廂"]
         retries = 0
@@ -155,8 +156,8 @@ class Booker():
             while retries < MAX_RETRIES:
                 result = self.booking()
                 if result == "no_seats":
-                    print("無座位，結束程式 (exit 2)")
-                    sys.exit(EXIT_NO_SEATS)
+                    print("無座位")
+                    return EXIT_NO_SEATS
                 if result == "error":
                     retries += 1
                     print(f"重試 ({retries}/{MAX_RETRIES})...")
@@ -166,17 +167,15 @@ class Booker():
                 retries = 0
                 if target_car is None or self.reserved[0] == target_car:
                     print(f"訂票成功! 車廂:{self.reserved[0]} 座位:{self.reserved[1]}")
-                    sys.exit(EXIT_SUCCESS)
+                    return EXIT_SUCCESS
                 else:
                     print(f"車廂不符 (got {self.reserved[0]}, want {target_car})，取消重訂...")
                     self.cancel()
             print("重試次數已達上限")
-            sys.exit(EXIT_ERROR)
-        except SystemExit:
-            raise
+            return EXIT_ERROR
         except Exception as e:
             print(f"發生錯誤: {e}")
-            sys.exit(EXIT_ERROR)
+            return EXIT_ERROR
         finally:
             self.driver.quit()
 
@@ -195,11 +194,33 @@ if __name__ == "__main__":
         query_trains(date, time_s, origin, dest)
         sys.exit(EXIT_SUCCESS)
 
+    # schedule subcommand: python main.py schedule <間隔秒數> <帳號> <起站> ...
+    if len(sys.argv) >= 2 and sys.argv[1] == "schedule":
+        if len(sys.argv) < 8:
+            print("Usage: python main.py schedule <間隔秒數> <帳號> <起站> <終站> <日期> <車次> [座位偏好(n/a/w)] [目標車廂]")
+            sys.exit(EXIT_ERROR)
+        try:
+            interval = int(sys.argv[2])
+        except ValueError:
+            print("錯誤：間隔秒數必須為整數")
+            sys.exit(EXIT_ERROR)
+        sys.argv = [sys.argv[0]] + sys.argv[3:]
+        attempt = 0
+        while True:
+            attempt += 1
+            print(f"\n===== 第 {attempt} 次嘗試 =====")
+            code = Booker().startBookAndCheck()
+            if code == EXIT_SUCCESS:
+                sys.exit(EXIT_SUCCESS)
+            elif code == EXIT_NO_SEATS:
+                print(f"{interval} 秒後重試...")
+                time.sleep(interval)
+            else:
+                print("發生錯誤，停止排程")
+                sys.exit(EXIT_ERROR)
+
     try:
-        newBooker = Booker()
-        newBooker.startBookAndCheck()
-    except SystemExit as e:
-        sys.exit(e.code)
+        sys.exit(Booker().startBookAndCheck())
     except Exception as e:
         print(f"啟動失敗: {e}")
         sys.exit(EXIT_ERROR)
