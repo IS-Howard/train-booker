@@ -10,8 +10,10 @@ EXIT_NO_SEATS = 2
 MAX_RETRIES = 5
 
 def load_from_args():
-    if len(sys.argv) not in (7, 8):
-        print("Usage: python main.py <帳號> <起站> <終站> <日期> <車次> <座位偏好(n/a/w)> [目標車廂]")
+    if len(sys.argv) not in (6, 7, 8):
+        print("Usage: python main.py <帳號> <起站> <終站> <日期> <車次> [座位偏好(n/a/w)] [目標車廂]")
+        print("       python main.py query <起站> <日期> <時間(HH:MM)> [終站]")
+        print("  日期格式：YYYYMMDD / MMDD / DD（未填年月自動補當前）")
         sys.exit(EXIT_ERROR)
 
     起站 = sys.argv[2]
@@ -23,14 +25,21 @@ def load_from_args():
         print(f"終站 '{終站}' 不存在")
         sys.exit(EXIT_ERROR)
 
+    from tdx import parse_date
+    try:
+        date8 = parse_date(sys.argv[4])
+    except ValueError as e:
+        print(f"錯誤：{e}")
+        sys.exit(EXIT_ERROR)
+
     data = {
         "帳號": sys.argv[1],
         "起站": 起站,
         "終站": 終站,
-        "日期": sys.argv[4],
+        "日期": date8,
         "車次": sys.argv[5],
-        "座位偏好": sys.argv[6],
-        "目標車廂": sys.argv[7] if len(sys.argv) == 8 else None,
+        "座位偏好": sys.argv[6] if len(sys.argv) >= 7 and sys.argv[6] in ('n', 'a', 'w') else 'n',
+        "目標車廂": sys.argv[7] if len(sys.argv) == 8 else (sys.argv[6] if len(sys.argv) == 7 and sys.argv[6] not in ('n', 'a', 'w') else None),
     }
     return data
 
@@ -172,6 +181,20 @@ class Booker():
             self.driver.quit()
 
 if __name__ == "__main__":
+    # query subcommand: python main.py query <起站> <日期> <時間> [終站]
+    if len(sys.argv) >= 2 and sys.argv[1] == "query":
+        if len(sys.argv) not in (5, 6):
+            print("Usage: python main.py query <起站> <日期> <時間(HH:MM)> [終站]")
+            print("  日期格式：YYYYMMDD / MMDD / DD（未填年月自動補當前）")
+            sys.exit(EXIT_ERROR)
+        from tdx import query_trains
+        origin = sys.argv[2]
+        date = sys.argv[3]
+        time_s = sys.argv[4]
+        dest = sys.argv[5] if len(sys.argv) == 6 else None
+        query_trains(date, time_s, origin, dest)
+        sys.exit(EXIT_SUCCESS)
+
     try:
         newBooker = Booker()
         newBooker.startBookAndCheck()
