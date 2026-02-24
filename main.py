@@ -45,47 +45,14 @@ def load_from_args():
 
 class Booker():
     def __init__(self):
-        extension_path = r"./extension"
         self.cfg = load_from_args()
-        self.driver = Driver(uc=True, extension_dir=extension_path)
+        self.driver = Driver(uc=True)
 
     def waitForBlockUI(self):
         for _ in range(30):
             if not self.driver.is_element_visible('.blockUI.blockOverlay'):
                 return
             time.sleep(1)
-
-    def checkRecaptcha(self):
-        print("wait passing recaptcha...")
-        wait = False
-        if self.driver.is_element_visible('iframe[title="google recaptcha"]'):
-            self.driver.switch_to_frame('iframe[title="google recaptcha"]')
-            time.sleep(1)
-            self.driver.click('#recaptcha-anchor')
-            while not self.driver.is_element_visible('.recaptcha-checkbox-checked'):
-                self.driver.switch_to_default_window()
-                if self.driver.is_element_visible('iframe[title="recaptcha challenge expires in two minutes"]'):
-                    self.driver.switch_to_frame('iframe[title="recaptcha challenge expires in two minutes"]')
-                    self.driver.wait_for_element('.help-button-holder', timeout=5)
-                    self.driver.click('.help-button-holder')
-                    print("Clicked reCAPTCHA solve button")
-                    wait = True
-                    break
-                time.sleep(1)
-                self.driver.switch_to_frame('iframe[title="google recaptcha"]')
-        self.driver.switch_to_default_window()
-        time.sleep(1)
-        if wait:
-            time.sleep(9)
-
-    def login(self):
-        self.driver.open("https://www.railway.gov.tw/tra-tip-web/tip/tip008/tip811/memberLogin")
-        self.driver.type("#username", self.cfg["帳號"])
-        self.driver.type("#password", self.cfg["密碼"])
-        self.checkRecaptcha()
-        self.driver.click('#submitBtn')
-        time.sleep(3)
-        print("Logged in!!")
 
     def booking(self):
         """Returns: 'success', 'no_seats', or 'error'"""
@@ -110,8 +77,6 @@ class Booker():
                 self.driver.click("#queryForm > div:nth-child(3) > div.column.col3 > div:nth-child(2) > div.btn-group.seatPref > label:nth-child(3)")
             elif self.cfg["座位偏好"] == 'n':
                 self.driver.click("#queryForm > div:nth-child(3) > div.column.col3 > div:nth-child(2) > div.btn-group.seatPref > label:nth-child(1)")
-            self.checkRecaptcha()
-            self.waitForBlockUI()
             self.driver.click('#queryForm > div.btn-sentgroup > input.btn.btn-3d')
             time.sleep(5)
             self.waitForBlockUI()
@@ -119,7 +84,6 @@ class Booker():
                 print("無可用座位")
                 return "no_seats"
             self.driver.click('#queryForm > div.search-trip > table > tbody > tr.trip-column > td.check-way > label')
-            self.checkRecaptcha()
             self.waitForBlockUI()
             self.driver.click('#queryForm > div.btn-sentgroup > button.btn.btn-3d')
             seat = self.driver.get_text('.seat')
@@ -149,7 +113,6 @@ class Booker():
 
     def startBookAndCheck(self):
         """Returns EXIT_SUCCESS, EXIT_NO_SEATS, or EXIT_ERROR."""
-        # self.login()
         target_car = self.cfg["目標車廂"]
         retries = 0
         try:

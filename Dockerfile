@@ -37,9 +37,6 @@ COPY main.py .
 COPY stations.py .
 COPY tdx.py .
 
-# Copy browser extension if it exists
-COPY extension/ ./extension/
-
 # Change ownership of app directory
 RUN chown -R appuser:appuser /app
 USER appuser
