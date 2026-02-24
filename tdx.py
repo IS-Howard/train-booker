@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import requests
 from datetime import datetime
@@ -108,6 +109,11 @@ def _tdx_get(token, path, params=None):
     return resp.json()
 
 
+def _short_type_name(name):
+    """Strip verbose parenthetical descriptions, keep short ones like (3000)."""
+    return re.sub(r'\(([^)]+)\)', lambda m: '' if (len(m.group(1)) > 4 or ' ' in m.group(1)) else m.group(0), name).strip()
+
+
 def _parse_hhmm(time_str):
     """Parse 'HH:MM' or 'HH:MM:SS' into a comparable tuple (h, m)."""
     parts = time_str.split(":")
@@ -198,6 +204,8 @@ def query_trains(date_str, time_str, origin_name, dest_name=None, nearby=5):
                 token,
                 f"/v3/Rail/TRA/DailyTrainTimetable/OD/{origin_id}/to/{dest_id}/{api_date}",
             )
+            if isinstance(data, dict):
+                data = next((v for v in data.values() if isinstance(v, list)), [])
             # Response: list of { TrainInfo: {...}, StopTimes: [...] }
             for item in data:
                 info = item.get("TrainInfo", {})
@@ -220,6 +228,8 @@ def query_trains(date_str, time_str, origin_name, dest_name=None, nearby=5):
                 token,
                 f"/v3/Rail/TRA/DailyStationTimetable/Station/{origin_id}/{api_date}",
             )
+            if isinstance(data, dict):
+                data = next((v for v in data.values() if isinstance(v, list)), [])
             # Response: list of { TrainInfo: {...}, StopTime: {...} }
             for item in data:
                 info = item.get("TrainInfo", {})
@@ -265,7 +275,7 @@ def query_trains(date_str, time_str, origin_name, dest_name=None, nearby=5):
         print(header)
         print(sep)
         for t in selected:
-            type_display = t["type_name"] or TRAIN_TYPE_NAMES.get(t["type_id"], t["type_id"])
+            type_display = _short_type_name(t["type_name"]) or TRAIN_TYPE_NAMES.get(t["type_id"], t["type_id"])
             dep = t["dep_time"][:5] if t["dep_time"] else "─"
             arr = t["arr_time"][:5] if t["arr_time"] else "─"
             duration = _format_duration(dep, arr) if t["dep_time"] and t["arr_time"] else "─"
@@ -277,7 +287,7 @@ def query_trains(date_str, time_str, origin_name, dest_name=None, nearby=5):
         print(header)
         print(sep)
         for t in selected:
-            type_display = t["type_name"] or TRAIN_TYPE_NAMES.get(t["type_id"], t["type_id"])
+            type_display = _short_type_name(t["type_name"]) or TRAIN_TYPE_NAMES.get(t["type_id"], t["type_id"])
             dep = t["dep_time"][:5] if t["dep_time"] else "─"
             marker = " ←" if t == trains[closest_idx] else ""
             print(f"{t['train_no']:<6} {type_display:<12} {dep}{marker}")
