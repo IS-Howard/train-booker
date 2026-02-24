@@ -77,15 +77,19 @@ class Booker():
                 self.driver.click("#queryForm > div:nth-child(3) > div.column.col3 > div:nth-child(2) > div.btn-group.seatPref > label:nth-child(3)")
             elif self.cfg["座位偏好"] == 'n':
                 self.driver.click("#queryForm > div:nth-child(3) > div.column.col3 > div:nth-child(2) > div.btn-group.seatPref > label:nth-child(1)")
+            self.driver.wait_for_element_visible('#queryForm > div.btn-sentgroup > input.btn.btn-3d')
             self.driver.click('#queryForm > div.btn-sentgroup > input.btn.btn-3d')
             time.sleep(5)
             self.waitForBlockUI()
             if self.driver.is_element_visible('.search-trip-mag'):
                 print("無可用座位")
                 return "no_seats"
+            self.driver.wait_for_element_visible('#queryForm > div.search-trip > table > tbody > tr.trip-column > td.check-way > label')
             self.driver.click('#queryForm > div.search-trip > table > tbody > tr.trip-column > td.check-way > label')
             self.waitForBlockUI()
+            self.driver.wait_for_element_visible('#queryForm > div.btn-sentgroup > button.btn.btn-3d')
             self.driver.click('#queryForm > div.btn-sentgroup > button.btn.btn-3d')
+            self.waitForBlockUI()
             seat = self.driver.get_text('.seat')
             self.reserved = re.findall(r'\d+', seat)
             self.bookID = self.driver.get_text('.font18')
@@ -99,16 +103,15 @@ class Booker():
             return "error"
 
     def cancel(self):
-        self.driver.get("https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip115/query")
+        self.driver.open("https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip115/query")
         self.driver.type('#pid', self.cfg["帳號"])
         self.driver.type('#bookingcode', self.bookID)
-        time.sleep(1)
+        self.driver.wait_for_element_visible('#queryForm > div.btn-sentgroup > button')
         self.driver.click('#queryForm > div.btn-sentgroup > button')
-        time.sleep(1)
+        self.driver.wait_for_element_visible('#cancel')
         self.driver.click('#cancel')
-        time.sleep(1)
+        self.driver.wait_for_element_visible('.btn-danger')
         self.driver.click('.btn-danger')
-        time.sleep(1)
         print("Canceled!!")
 
     def startBookAndCheck(self):
