@@ -12,7 +12,7 @@ MAX_RETRIES = 5
 def load_from_args():
     if len(sys.argv) not in (6, 7, 8):
         print("Usage: python main.py <帳號> <起站> <終站> <日期> <車次> [座位偏好(n/a/w)] [目標車廂]")
-        print("       python main.py query <起站> <日期> <時間(HH:MM)> [終站]")
+        print("       python main.py query <起站> <終站> <日期> <時間(HH:MM)>")
         print("  日期格式：YYYYMMDD / MMDD / DD（未填年月自動補當前）")
         sys.exit(EXIT_ERROR)
 
@@ -182,15 +182,15 @@ class Booker():
 if __name__ == "__main__":
     # query subcommand: python main.py query <起站> <日期> <時間> [終站]
     if len(sys.argv) >= 2 and sys.argv[1] == "query":
-        if len(sys.argv) not in (5, 6):
-            print("Usage: python main.py query <起站> <日期> <時間(HH:MM)> [終站]")
+        if len(sys.argv) != 6:
+            print("Usage: python main.py query <起站> <終站> <日期> <時間(HH:MM)>")
             print("  日期格式：YYYYMMDD / MMDD / DD（未填年月自動補當前）")
             sys.exit(EXIT_ERROR)
         from tdx import query_trains
         origin = sys.argv[2]
-        date = sys.argv[3]
-        time_s = sys.argv[4]
-        dest = sys.argv[5] if len(sys.argv) == 6 else None
+        dest = sys.argv[3]
+        date = sys.argv[4]
+        time_s = sys.argv[5]
         query_trains(date, time_s, origin, dest)
         sys.exit(EXIT_SUCCESS)
 

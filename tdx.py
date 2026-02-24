@@ -140,15 +140,15 @@ def _format_duration(dep_str, arr_str):
     return f"{m}分"
 
 
-def query_trains(date_str, time_str, origin_name, dest_name=None, nearby=5):
+def query_trains(date_str, time_str, origin_name, dest_name, nearby=5):
     """
-    查詢指定日期/時間/起站附近的台鐵班次。
+    查詢指定日期/時間/起站→終站附近的台鐵班次。
 
     Args:
         date_str: 接受 YYYYMMDD / MMDD / DD，年月未填自動補當前
         time_str: 'HH:MM'
         origin_name: 起站中文名稱
-        dest_name: 終站中文名稱（可為 None）
+        dest_name: 終站中文名稱
         nearby: 時間前後各幾班
 
     Returns:
@@ -173,11 +173,12 @@ def query_trains(date_str, time_str, origin_name, dest_name=None, nearby=5):
     if origin_name not in _STATION_NAME_TO_ID:
         print(f"錯誤：起站 '{origin_name}' 不存在")
         sys.exit(1)
-    if dest_name and dest_name not in _STATION_NAME_TO_ID:
+    if dest_name not in _STATION_NAME_TO_ID:
         print(f"錯誤：終站 '{dest_name}' 不存在")
         sys.exit(1)
 
     origin_id = _STATION_NAME_TO_ID[origin_name]
+    dest_id = _STATION_NAME_TO_ID[dest_name]
 
     # Load credentials
     cfg = _load_config()
@@ -198,50 +199,29 @@ def query_trains(date_str, time_str, origin_name, dest_name=None, nearby=5):
     trains = []
 
     try:
-        if dest_name:
-            dest_id = _STATION_NAME_TO_ID[dest_name]
-            data = _tdx_get(
-                token,
-                f"/v3/Rail/TRA/DailyTrainTimetable/OD/{origin_id}/to/{dest_id}/{api_date}",
-            )
-            if isinstance(data, dict):
-                data = next((v for v in data.values() if isinstance(v, list)), [])
-            # Response: list of { TrainInfo: {...}, StopTimes: [...] }
-            for item in data:
-                info = item.get("TrainInfo", {})
-                stops = item.get("StopTimes", [])
-                dep_stop = next((s for s in stops if s["StationID"] == origin_id), None)
-                arr_stop = next((s for s in stops if s["StationID"] == dest_id), None)
-                if not dep_stop:
-                    continue
-                dep_time = dep_stop.get("DepartureTime", dep_stop.get("ArrivalTime", ""))
-                arr_time = arr_stop.get("ArrivalTime", arr_stop.get("DepartureTime", "")) if arr_stop else ""
-                trains.append({
-                    "train_no": info.get("TrainNo", ""),
-                    "type_id": str(info.get("TrainTypeCode", info.get("TrainTypeID", ""))),
-                    "type_name": info.get("TrainTypeName", {}).get("Zh_tw", ""),
-                    "dep_time": dep_time,
-                    "arr_time": arr_time,
-                })
-        else:
-            data = _tdx_get(
-                token,
-                f"/v3/Rail/TRA/DailyStationTimetable/Station/{origin_id}/{api_date}",
-            )
-            if isinstance(data, dict):
-                data = next((v for v in data.values() if isinstance(v, list)), [])
-            # Response: list of { TrainInfo: {...}, StopTime: {...} }
-            for item in data:
-                info = item.get("TrainInfo", {})
-                stop = item.get("StopTime", {})
-                dep_time = stop.get("DepartureTime", stop.get("ArrivalTime", ""))
-                trains.append({
-                    "train_no": info.get("TrainNo", ""),
-                    "type_id": str(info.get("TrainTypeCode", info.get("TrainTypeID", ""))),
-                    "type_name": info.get("TrainTypeName", {}).get("Zh_tw", ""),
-                    "dep_time": dep_time,
-                    "arr_time": "",
-                })
+        data = _tdx_get(
+            token,
+            f"/v3/Rail/TRA/DailyTrainTimetable/OD/{origin_id}/to/{dest_id}/{api_date}",
+        )
+        if isinstance(data, dict):
+            data = next((v for v in data.values() if isinstance(v, list)), [])
+        # Response: list of { TrainInfo: {...}, StopTimes: [...] }
+        for item in data:
+            info = item.get("TrainInfo", {})
+            stops = item.get("StopTimes", [])
+            dep_stop = next((s for s in stops if s["StationID"] == origin_id), None)
+            arr_stop = next((s for s in stops if s["StationID"] == dest_id), None)
+            if not dep_stop:
+                continue
+            dep_time = dep_stop.get("DepartureTime", dep_stop.get("ArrivalTime", ""))
+            arr_time = arr_stop.get("ArrivalTime", arr_stop.get("DepartureTime", "")) if arr_stop else ""
+            trains.append({
+                "train_no": info.get("TrainNo", ""),
+                "type_id": str(info.get("TrainTypeCode", info.get("TrainTypeID", ""))),
+                "type_name": info.get("TrainTypeName", {}).get("Zh_tw", ""),
+                "dep_time": dep_time,
+                "arr_time": arr_time,
+            })
     except requests.HTTPError as e:
         print(f"TDX API 錯誤: {e}")
         sys.exit(1)
@@ -266,30 +246,18 @@ def query_trains(date_str, time_str, origin_name, dest_name=None, nearby=5):
     selected = trains[lo:hi]
 
     # Print header
-    dest_label = f" → {dest_name}" if dest_name else ""
-    print(f"\n查詢: {origin_name}{dest_label} | {display_date} {time_str} 附近班次\n")
+    print(f"\n查詢: {origin_name} → {dest_name} | {display_date} {time_str} 附近班次\n")
 
-    if dest_name:
-        header = f"{'車次':<6} {'車種':<12} {'出發':<7} {'到達':<7} {'行駛時間'}"
-        sep = "─" * 52
-        print(header)
-        print(sep)
-        for t in selected:
-            type_display = _short_type_name(t["type_name"]) or TRAIN_TYPE_NAMES.get(t["type_id"], t["type_id"])
-            dep = t["dep_time"][:5] if t["dep_time"] else "─"
-            arr = t["arr_time"][:5] if t["arr_time"] else "─"
-            duration = _format_duration(dep, arr) if t["dep_time"] and t["arr_time"] else "─"
-            marker = " ←" if t == trains[closest_idx] else ""
-            print(f"{t['train_no']:<6} {type_display:<12} {dep:<7} {arr:<7} {duration}{marker}")
-    else:
-        header = f"{'車次':<6} {'車種':<12} {'出發'}"
-        sep = "─" * 38
-        print(header)
-        print(sep)
-        for t in selected:
-            type_display = _short_type_name(t["type_name"]) or TRAIN_TYPE_NAMES.get(t["type_id"], t["type_id"])
-            dep = t["dep_time"][:5] if t["dep_time"] else "─"
-            marker = " ←" if t == trains[closest_idx] else ""
-            print(f"{t['train_no']:<6} {type_display:<12} {dep}{marker}")
+    header = f"{'車次':<6} {'車種':<12} {'出發':<7} {'到達':<7} {'行駛時間'}"
+    sep = "─" * 52
+    print(header)
+    print(sep)
+    for t in selected:
+        type_display = _short_type_name(t["type_name"]) or TRAIN_TYPE_NAMES.get(t["type_id"], t["type_id"])
+        dep = t["dep_time"][:5] if t["dep_time"] else "─"
+        arr = t["arr_time"][:5] if t["arr_time"] else "─"
+        duration = _format_duration(dep, arr) if t["dep_time"] and t["arr_time"] else "─"
+        marker = " ←" if t == trains[closest_idx] else ""
+        print(f"{t['train_no']:<6} {type_display:<12} {dep:<7} {arr:<7} {duration}{marker}")
 
     print()
