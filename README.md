@@ -76,7 +76,7 @@ client_secret=你的_client_secret
 
 ```bash
 docker build -t train-booker .
-docker run train-booker C121568911 松山 新竹 20260301 131 a 5
+docker run --rm train-booker C121568911 松山 新竹 20260301 131 a 5
 ```
 
 ## 結束代碼

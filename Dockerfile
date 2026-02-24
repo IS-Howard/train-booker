@@ -35,6 +35,7 @@ RUN chmod -R 777 /usr/local/lib/python3.11/site-packages/seleniumbase/drivers/
 # Copy application files
 COPY main.py .
 COPY stations.py .
+COPY tdx.py .
 
 # Copy browser extension if it exists
 COPY extension/ ./extension/

@@ -47,7 +47,7 @@ class Booker():
     def __init__(self):
         extension_path = r"./extension"
         self.cfg = load_from_args()
-        self.driver = Driver(uc=True, headless2=True, extension_dir=extension_path)
+        self.driver = Driver(uc=True, extension_dir=extension_path)
 
     def waitForBlockUI(self):
         for _ in range(30):
