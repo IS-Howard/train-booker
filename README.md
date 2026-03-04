@@ -7,9 +7,10 @@
 - Python 3.11+
 - [SeleniumBase](https://github.com/seleniumbase/SeleniumBase)
 - Google Chrome
+- uv
 
 ```bash
-pip install seleniumbase
+uv sync
 ```
 
 查詢功能額外需要 [TDX 帳號](https://tdx.transportdata.tw)（免費）。
@@ -19,7 +20,7 @@ pip install seleniumbase
 ### 訂票
 
 ```bash
-python main.py <帳號> <起站> <終站> <日期> <車次> [座位偏好] [目標車廂]
+uv run main.py <帳號> <起站> <終站> <日期> <車次> [座位偏好] [目標車廂]
 ```
 
 | 參數 | 說明 |
@@ -32,7 +33,7 @@ python main.py <帳號> <起站> <終站> <日期> <車次> [座位偏好] [目�
 | 目標車廂 | 指定車廂號，不符則自動取消重訂 |
 
 ```bash
-python main.py C121568911 松山 新竹 20260301 131 a 5
+uv run main.py C121568911 松山 新竹 20260301 131 a 5
 ```
 
 ### 排程重試
@@ -40,11 +41,11 @@ python main.py C121568911 松山 新竹 20260301 131 a 5
 無票時每隔指定秒數重試，直到訂到為止：
 
 ```bash
-python main.py schedule <間隔秒數> <帳號> <起站> <終站> <日期> <車次> [座位偏好] [目標車廂]
+uv run main.py schedule <間隔秒數> <帳號> <起站> <終站> <日期> <車次> [座位偏好] [目標車廂]
 ```
 
 ```bash
-python main.py schedule 60 C121568911 松山 新竹 20260301 131 a 5
+uv run main.py schedule 60 C121568911 松山 新竹 20260301 131 a 5
 ```
 
 ### 查詢班次
@@ -52,11 +53,11 @@ python main.py schedule 60 C121568911 松山 新竹 20260301 131 a 5
 查詢指定時間附近的台鐵班次（需 TDX API 憑證）：
 
 ```bash
-python main.py query <起站> <終站> <日期> <時間>
+uv run main.py query <起站> <終站> <日期> <時間>
 ```
 
 ```bash
-python main.py query 松山 新竹 20260301 0900
+uv run main.py query 松山 新竹 20260301 0900
 ```
 
 時間格式：`HH:MM`、`HHMM`、`HMM`（如 `900` → `09:00`）
@@ -71,13 +72,6 @@ client_secret=你的_client_secret
 ```
 
 前往 [tdx.transportdata.tw](https://tdx.transportdata.tw) 免費註冊取得。
-
-## Docker
-
-```bash
-docker build -t train-booker .
-docker run --rm train-booker C121568911 松山 新竹 20260301 131 a 5
-```
 
 ## 結束代碼
 
