@@ -49,19 +49,38 @@ class Booker():
         self.driver = Driver(uc=True)
 
     def waitForBlockUI(self):
-        for _ in range(30):
+        # Wait up to 2s for blockUI to appear (in case AJAX hasn't started yet)
+        for _ in range(8):
+            if self.driver.is_element_visible('.blockUI.blockOverlay'):
+                break
+            time.sleep(0.25)
+        # Then wait for blockUI to disappear (up to 30s)
+        for _ in range(120):
             if not self.driver.is_element_visible('.blockUI.blockOverlay'):
                 return
-            time.sleep(1)
+            time.sleep(0.25)
+
+    def waitForResults(self, timeout=30):
+        """Wait for search results or no-seats message to appear. Returns True if results found."""
+        for _ in range(timeout * 4):
+            if self.driver.is_element_visible('tr.trip-column'):
+                return True
+            if self.driver.is_element_visible('.search-trip-mag'):
+                return False
+            if self.driver.is_element_visible('.info-error'):
+                return None  # form validation error
+            time.sleep(0.25)
+        return None  # timeout
 
     def booking(self):
         """Returns: 'success', 'no_seats', or 'error'"""
         self.reserved = []
         self.bookID = ""
         try:
-            self.driver.open("https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip121/query")
+            # Navigate directly to the complete booking form (tip123)
+            self.driver.open("https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip123/query")
             self.waitForBlockUI()
-            self.driver.click('#tablist > li:nth-child(2) > a')
+            self.driver.wait_for_element_visible('#startStation1')
             startStation = stationIDs[self.cfg["起站"]]+'-'+self.cfg["起站"]
             self.driver.type('#startStation1', startStation)
             endStation = stationIDs[self.cfg["終站"]]+'-'+self.cfg["終站"]
@@ -79,20 +98,22 @@ class Booker():
                 self.driver.click("#queryForm > div:nth-child(3) > div.column.col3 > div:nth-child(2) > div.btn-group.seatPref > label:nth-child(1)")
             self.driver.wait_for_element_visible('#queryForm > div.btn-sentgroup > input.btn.btn-3d')
             self.driver.click('#queryForm > div.btn-sentgroup > input.btn.btn-3d')
-            time.sleep(5)
-            self.waitForBlockUI()
-            if self.driver.is_element_visible('.search-trip-mag'):
+            result = self.waitForResults(timeout=30)
+            if result is None:
+                print("查詢逾時或表單驗證失敗")
+                return "error"
+            if result is False:
                 print("無可用座位")
                 return "no_seats"
-            self.driver.wait_for_element_visible('#queryForm > div.search-trip > table > tbody > tr.trip-column > td.check-way > label')
             self.driver.click('#queryForm > div.search-trip > table > tbody > tr.trip-column > td.check-way > label')
             self.waitForBlockUI()
             self.driver.wait_for_element_visible('#queryForm > div.btn-sentgroup > button.btn.btn-3d')
             self.driver.click('#queryForm > div.btn-sentgroup > button.btn.btn-3d')
-            self.waitForBlockUI()
+            # Page navigates to /tip115/booking/modify — wait for it
+            self.driver.wait_for_element_visible('.seat', timeout=20)
             seat = self.driver.get_text('.seat')
             self.reserved = re.findall(r'\d+', seat)
-            self.bookID = self.driver.get_text('.font18')
+            self.bookID = self.driver.get_text('.font18', timeout=20)
             if len(self.reserved) != 2:
                 print("booking error")
                 return "error"
@@ -103,16 +124,26 @@ class Booker():
             return "error"
 
     def cancel(self):
-        self.driver.open("https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip115/query")
-        self.driver.type('#pid', self.cfg["帳號"])
-        self.driver.type('#bookingcode', self.bookID)
-        self.driver.wait_for_element_visible('#queryForm > div.btn-sentgroup > button')
-        self.driver.click('#queryForm > div.btn-sentgroup > button')
-        self.driver.wait_for_element_visible('#cancel')
-        self.driver.click('#cancel')
-        self.driver.wait_for_element_visible('.btn-danger')
-        self.driver.click('.btn-danger')
-        print("Canceled!!")
+        for attempt in range(3):
+            try:
+                self.driver.open("https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip115/query")
+                self.waitForBlockUI()
+                self.driver.type('#pid', self.cfg["帳號"])
+                self.driver.type('#bookingcode', self.bookID)
+                self.driver.wait_for_element_visible('#queryForm > div.btn-sentgroup > button')
+                self.driver.click('#queryForm > div.btn-sentgroup > button')
+                self.waitForBlockUI()
+                self.driver.wait_for_element_visible('#cancel', timeout=15)
+                self.driver.click('#cancel')
+                self.driver.wait_for_element_visible('.btn-danger', timeout=15)
+                self.driver.click('.btn-danger')
+                self.waitForBlockUI()
+                print("Canceled!!")
+                return
+            except Exception as e:
+                print(f"取消失敗 ({attempt+1}/3): {e}")
+                time.sleep(2)
+        print("取消失敗，請手動取消訂票代碼:", self.bookID)
 
     def startBookAndCheck(self):
         """Returns EXIT_SUCCESS, EXIT_NO_SEATS, or EXIT_ERROR."""
